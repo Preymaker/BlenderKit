@@ -89,7 +89,11 @@ def _read_api_key_threadsafe() -> str:
     """Return the user's API key without touching bpy from a non-main thread.
     On the main thread we read the live preference. On a worker thread we read
     the snapshot maintained by client_thread (updated each main timer tick).
+    BLENDERKIT_API_KEY environment variable takes priority over stored preferences.
     """
+    env_key = os.environ.get("BLENDERKIT_API_KEY", "")
+    if env_key:
+        return env_key
     if threading.current_thread() is threading.main_thread():
         try:
             return bpy.context.preferences.addons[__package__].preferences.api_key  # type: ignore
