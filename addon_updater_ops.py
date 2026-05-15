@@ -33,6 +33,21 @@ from . import client_lib, utils
 
 bk_logger = logging.getLogger(__name__)
 
+_MANAGED_INSTALL_ENV_VAR = "BLENDERKIT_MANAGED_INSTALL"
+_MANAGED_INSTALL_MSG = (
+    "BlenderKit is centrally managed — updates are disabled by your administrator."
+)
+
+
+def is_managed_install() -> bool:
+    """Return True when BLENDERKIT_MANAGED_INSTALL is set to any non-empty value.
+
+    When active, all auto-update checks and installs are suppressed so the addon
+    can be deployed from a read-only, centrally managed location without the
+    updater attempting to write into the addon directory.
+    """
+    return bool(os.environ.get(_MANAGED_INSTALL_ENV_VAR, ""))
+
 
 # Safely import the updater.
 # Prevents popups for users with invalid python installs e.g. missing libraries
@@ -258,6 +273,9 @@ class AddonUpdaterCheckNow(bpy.types.Operator):
     bl_options = {"REGISTER", "INTERNAL"}
 
     def execute(self, context):
+        if is_managed_install():
+            self.report({"WARNING"}, _MANAGED_INSTALL_MSG)
+            return {"CANCELLED"}
         if updater.invalid_updater:
             return {"CANCELLED"}
 
@@ -313,6 +331,9 @@ class AddonUpdaterUpdateNow(bpy.types.Operator):
     )
 
     def execute(self, context):
+        if is_managed_install():
+            self.report({"WARNING"}, _MANAGED_INSTALL_MSG)
+            return {"CANCELLED"}
         # in case of error importing updater
         if updater.invalid_updater:
             return {"CANCELLED"}
@@ -414,6 +435,9 @@ class AddonUpdaterUpdateTarget(bpy.types.Operator):
         sub_col.prop(self, "target", text="")
 
     def execute(self, context):
+        if is_managed_install():
+            self.report({"WARNING"}, _MANAGED_INSTALL_MSG)
+            return {"CANCELLED"}
         # In case of error importing updater.
         if updater.invalid_updater:
             return {"CANCELLED"}
@@ -800,6 +824,9 @@ def check_for_update_background():
     *Could* be called on register, but would be bad practice as the bare
     minimum code should run at the moment of registration (addon ticked).
     """
+    if is_managed_install():
+        bk_logger.info("BlenderKit: managed install detected, skipping update check.")
+        return
     if updater.invalid_updater:
         return
     global ran_background_check
@@ -990,6 +1017,25 @@ def update_settings_ui(self, context, element=None):
 
     # auto-update settings
     box.label(text="Updater Settings")
+
+    if is_managed_install():
+        warn = box.box()
+        warn_col = warn.column(align=True)
+        warn_col.alert = True
+        warn_col.label(text="Centrally managed install", icon="LOCKED")
+        warn_col.alert = False
+        warn_col.label(text="Auto-updates are disabled by your administrator.")
+        warn_col.label(text="Set BLENDERKIT_MANAGED_INSTALL to enable updates.")
+        version_row = box.row()
+        version_row.label(
+            text=f"BlenderKit v{utils.get_addon_version()} · Blender {bpy.app.version_string}",
+            icon="INFO",
+        )
+        version_row.operator(
+            "wm.blenderkit_copy_environment_info", text="Copy Info", icon="COPYDOWN"
+        )
+        return
+
     row = box.row()
 
     # special case to tell user to restart blender, if set that way
