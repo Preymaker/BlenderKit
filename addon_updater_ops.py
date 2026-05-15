@@ -1602,7 +1602,8 @@ def register(bl_info):
 
     # Special situation: we just updated the addon, show a popup to tell the
     # user it worked. Could enclosed in try/catch in case other issues arise.
-    show_reload_popup()
+    if not is_managed_install():
+        show_reload_popup()
 
 
 def unregister():
