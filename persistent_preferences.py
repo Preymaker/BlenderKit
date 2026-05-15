@@ -75,7 +75,9 @@ def load_preferences_from_JSON():
         "welcome_operator_counter", user_preferences.welcome_operator_counter
     )
     # MAIN PREFERENCES
-    user_preferences.api_key = prefs.get("api_key", user_preferences.api_key)
+    # Environment variable takes priority over stored value.
+    env_api_key = os.environ.get("BLENDERKIT_API_KEY", "")
+    user_preferences.api_key = env_api_key or prefs.get("api_key", user_preferences.api_key)
     user_preferences.api_key_refresh = prefs.get(
         "api_key_refresh", user_preferences.api_key_refresh
     )
