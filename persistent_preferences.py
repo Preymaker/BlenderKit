@@ -49,6 +49,19 @@ def write_preferences_to_JSON(preferences: dict):
 
 def load_preferences_from_JSON():
     """Load preferences from JSON file and update the user preferences accordingly."""
+    # Apply BLENDERKIT_API_KEY env var first so it takes effect even when no
+    # JSON preferences file exists yet. preferences_lock suppresses the
+    # get_user_profile() call inside api_key_property_updated during startup.
+    env_api_key = os.environ.get("BLENDERKIT_API_KEY", "")
+    if env_api_key:
+        try:
+            uprefs = bpy.context.preferences.addons[__package__].preferences
+            uprefs.preferences_lock = True
+            uprefs.api_key = env_api_key
+            uprefs.preferences_lock = False
+        except (AttributeError, KeyError):
+            pass
+
     preferences_path = get_preferences_path()
     if os.path.exists(preferences_path) is not True:
         return utils.get_preferences_as_dict()
@@ -75,7 +88,9 @@ def load_preferences_from_JSON():
         "welcome_operator_counter", user_preferences.welcome_operator_counter
     )
     # MAIN PREFERENCES
-    user_preferences.api_key = prefs.get("api_key", user_preferences.api_key)
+    # Environment variable takes priority over stored value.
+    env_api_key = os.environ.get("BLENDERKIT_API_KEY", "")
+    user_preferences.api_key = env_api_key or prefs.get("api_key", user_preferences.api_key)
     user_preferences.api_key_refresh = prefs.get(
         "api_key_refresh", user_preferences.api_key_refresh
     )
