@@ -545,7 +545,8 @@ def register_timers():
     # ONETIMERS
     bpy.app.timers.register(on_startup_timer)
     bpy.app.timers.register(on_startup_client_online_timer, first_interval=1)
-    bpy.app.timers.register(disclaimer_op.show_disclaimer_timer, first_interval=1)
+    if not os.environ.get("BLENDERKIT_MANAGED_INSTALL", ""):
+        bpy.app.timers.register(disclaimer_op.show_disclaimer_timer, first_interval=1)
 
 
 def unregister_timers():

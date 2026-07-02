@@ -48,6 +48,8 @@ When active:
   a warning message if clicked
 - The updater preferences panel is replaced with a notice explaining that updates are
   managed centrally, along with the current version and a Copy Info button
+- Startup popups are suppressed — both server-fetched announcements (e.g. promotional
+  content from BlenderKit's servers) and the local random tips that appear on first launch
 
 This mode exists because the updater would otherwise attempt to write files into the
 addon's own directory, which is not possible when deployed to a read-only central
