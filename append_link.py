@@ -435,6 +435,9 @@ def append_scene(file_name, scenename=None, link=False, fake_user=False):
             if scenename is None or s.strip() == scenename.strip():
                 data_to.scenes = [s]
                 scenename = s
+    if scenename is None or scenename not in bpy.data.scenes:
+        bk_logger.warning("append_scene: no scene found in %s", file_name)
+        return None
     scene = bpy.data.scenes[scenename]
     if fake_user:
         scene.use_fake_user = True

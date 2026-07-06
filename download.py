@@ -700,6 +700,20 @@ def append_asset(
     if asset_data["assetType"] == "scene":
         sprops = wm.blenderkit_scene
 
+        if sprops.append_link == "OPEN":
+            # Open the downloaded file directly instead of appending its scene.
+            # Appending a scene and then activating it can hard-crash Blender
+            # (a memory-corruption bug in Blender's append + scene-activate path);
+            # opening the file loads it cleanly and reliably.
+            # This dedicated operator confirms unsaved changes and then opens the
+            # file in EXEC mode. Calling wm.open_mainfile with INVOKE_DEFAULT here
+            # pops up the file browser instead of opening the given file.
+            bpy.ops.scene.blenderkit_open_scene_file(
+                "INVOKE_DEFAULT", filepath=file_names[0]
+            )
+            # The whole session is being replaced; nothing more to do here.
+            return
+
         scene = append_link.append_scene(
             file_names[0], link=sprops.append_link == "LINK", fake_user=False
         )
@@ -2581,10 +2595,45 @@ class BlenderkitDownloadOperator(bpy.types.Operator):
         return self.execute(context)
 
 
+class BlenderkitOpenSceneFileOperator(bpy.types.Operator):
+    """Open a downloaded scene .blend file directly.
+
+    Used for the scene "Open" import mode. Opening the file (rather than appending
+    its scene and switching to it) avoids a Blender crash in the append +
+    scene-activate path. If the current file has unsaved changes, a confirmation is
+    shown first. Opening replaces the current session.
+    """
+
+    bl_idname = "scene.blenderkit_open_scene_file"
+    bl_label = "Open BlenderKit Scene File"
+    bl_description = "Open the downloaded scene file, replacing the current session"
+    bl_options = {"REGISTER", "INTERNAL"}
+
+    filepath: StringProperty(subtype="FILE_PATH")  # type: ignore[valid-type]
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        # EXEC mode with an explicit filepath opens the file directly, without the
+        # file browser that INVOKE_DEFAULT would pop up.
+        bpy.ops.wm.open_mainfile(filepath=self.filepath)
+        return {"FINISHED"}
+
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+        if bpy.data.is_dirty:
+            return context.window_manager.invoke_confirm(
+                self,
+                event,
+                title="Open scene file",
+                message="Unsaved changes in the current file will be lost. Continue?",
+                confirm_text="Open",
+            )
+        return self.execute(context)
+
+
 def register_download() -> None:
     bpy.utils.register_class(BlenderkitDownloadOperator)
     bpy.utils.register_class(BlenderkitKillDownloadOperator)
     bpy.utils.register_class(BlenderkitAddonChoiceOperator)
+    bpy.utils.register_class(BlenderkitOpenSceneFileOperator)
     bpy.app.handlers.load_post.append(scene_load)
     bpy.app.handlers.save_pre.append(scene_save)
     bpy.app.handlers.load_post.append(scene_load_post)
@@ -2594,6 +2643,7 @@ def unregister_download() -> None:
     bpy.utils.unregister_class(BlenderkitDownloadOperator)
     bpy.utils.unregister_class(BlenderkitKillDownloadOperator)
     bpy.utils.unregister_class(BlenderkitAddonChoiceOperator)
+    bpy.utils.unregister_class(BlenderkitOpenSceneFileOperator)
     bpy.app.handlers.load_post.remove(scene_load)
     bpy.app.handlers.save_pre.remove(scene_save)
     bpy.app.handlers.load_post.remove(scene_load_post)

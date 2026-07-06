@@ -2107,16 +2107,31 @@ class BlenderKitSceneSearchProps(PropertyGroup, BlenderKitCommonSearchProps):
         update=search.search_update,
     )
     append_link: EnumProperty(
-        name="Append or link",
+        name="Append, link or open",
         items=(
-            ("LINK", "Link", ""),
-            ("APPEND", "Append", ""),
+            ("LINK", "Link", "Link the scene from the downloaded file"),
+            ("APPEND", "Append", "Append the scene into the current file"),
+            (
+                "OPEN",
+                "Open",
+                "Open the downloaded scene file directly. Reliable way to use a "
+                "scene asset - avoids the Blender crash that can happen when a "
+                "freshly appended scene is activated. Replaces the current session "
+                "(you will be prompted to save unsaved changes)",
+            ),
         ),
-        description="choose if the scene will be linked or appended",
-        default="APPEND",
+        description="choose if the scene will be linked, appended or opened",
+        default="OPEN",
     )
     switch_after_append: BoolProperty(
-        name="Switch to scene after download", default=True
+        name="Switch to scene after download",
+        description=(
+            "Switch to the scene after downloading. Disabled by default because "
+            "activating a freshly appended scene can hard-crash Blender (a known "
+            "crash in Blender's append + scene-activate path); open the downloaded "
+            ".blend directly if you hit this"
+        ),
+        default=False,
     )
 
 

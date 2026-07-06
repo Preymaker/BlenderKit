@@ -48,11 +48,55 @@ When active:
   a warning message if clicked
 - The updater preferences panel is replaced with a notice explaining that updates are
   managed centrally, along with the current version and a Copy Info button
+- Startup popups are suppressed — both server-fetched announcements (e.g. promotional
+  content from BlenderKit's servers) and the local random tips that appear on first launch
 
 This mode exists because the updater would otherwise attempt to write files into the
 addon's own directory, which is not possible when deployed to a read-only central
 location. With `BLENDERKIT_MANAGED_INSTALL` unset the addon behaves exactly as upstream,
 so this can be proposed as a PR without affecting normal users.
+
+---
+
+### Scene assets default to "Open"
+
+Scene assets offer a third import mode, **Open**, which is now the default (upstream
+only has Link and Append). Open calls `bpy.ops.wm.open_mainfile` on the downloaded
+`.blend` instead of appending its scene datablock into the current file. Blender's
+native "Save changes?" prompt handles unsaved work.
+
+**Why:** appending a scene and then activating it (switching `window.scene` to it)
+can **hard-crash Blender** — a segfault in Blender's own append + scene-activate code
+path, not in the addon. Symptoms seen while diagnosing:
+
+- Crashes in both Link and Append modes.
+- The Python backtrace in the crash log is empty — the crash is in Blender's C code.
+- `bpy.data.libraries.load(...)` of the scene succeeds; the crash happens on
+  `bpy.context.window.scene = <appended scene>`.
+- Switching to a brand-new empty scene works fine; only the appended scene crashes.
+- The `.blend` opens cleanly on its own (`blender --factory-startup <file>`), so the
+  file is not corrupt.
+- Reproducible with a 3-line script in `--factory-startup` (no addons), and still
+  crashes with `LIBGL_ALWAYS_SOFTWARE=1` (rules out the GPU driver).
+- **Non-deterministic** — the same input crashes some runs and not others, which points
+  to a use-after-free / memory corruption in the append + remap step.
+
+Observed on Blender 4.5.11 (file subversion 92) on Rocky Linux 8. Not version-related:
+the crash persisted after matching the file's Blender subversion.
+
+Related code:
+
+- `download.py` — the `OPEN` branch in `download_post` (opens instead of appending).
+- `__init__.py` — `BlenderKitSceneSearchProps.append_link` enum (adds `OPEN`, default)
+  and `switch_after_append` (now defaults `False`).
+- `ui_panels.py` — `draw_scene_import_settings` shows a crash warning when Link/Append
+  is selected.
+- `append_link.py` — `append_scene` now returns `None` (with a warning) instead of
+  raising when the file contains no matching scene.
+
+If this is filed upstream / with Blender, drop the issue link next to the `OPEN`
+branch in `download.py`. If Blender fixes the append-activate crash, the default could
+be reverted to Append and the warning removed.
 
 ---
 

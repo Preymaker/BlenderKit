@@ -1976,9 +1976,20 @@ def draw_scene_import_settings(self, context):
     wm = bpy.context.window_manager
     props = wm.blenderkit_scene
     layout = self.layout
-    layout.prop(props, "switch_after_append")
     row = layout.row()
     row.prop(props, "append_link", expand=True, icon_only=False)
+    # "Switch to scene" only applies when the scene is brought into the current
+    # file (append/link); "Open" replaces the session so it is not relevant.
+    if props.append_link != "OPEN":
+        layout.prop(props, "switch_after_append")
+        # Activating an appended/linked scene can hard-crash Blender (a memory
+        # corruption bug in Blender's append + scene-activate path). Warn, and
+        # point users to the safe "Open" option.
+        box = layout.box()
+        col = box.column(align=True)
+        col.label(text="Append/Link may crash Blender", icon="ERROR")
+        col.label(text="when the scene is activated.")
+        col.label(text='Use "Open" for reliable results.')
 
 
 class VIEW3D_PT_blenderkit_import_settings(Panel):

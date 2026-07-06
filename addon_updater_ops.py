@@ -1423,6 +1423,16 @@ def register(bl_info):
     if updater.error:
         bk_logger.error("Exiting updater registration, %s", updater.error)
         return
+
+    if is_managed_install():
+        # Skip updater configuration entirely — it writes state files to the
+        # addon directory, which is read-only in a managed install. Classes are
+        # still registered so the preferences UI can draw the managed-install notice.
+        for cls in classes:
+            make_annotations(cls)
+            bpy.utils.register_class(cls)
+        return
+
     updater.clear_state()  # Clear internal vars, avoids reloading oddities.
 
     # Confirm your updater "engine" (Github is default if not specified).
